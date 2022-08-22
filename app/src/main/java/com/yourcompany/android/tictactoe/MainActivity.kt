@@ -13,7 +13,6 @@ import androidx.activity.viewModels
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.core.content.ContextCompat
-import com.google.android.gms.nearby.Nearby
 import com.yourcompany.android.tictactoe.routing.Screen
 import com.yourcompany.android.tictactoe.routing.TicTacToeRouter
 import com.yourcompany.android.tictactoe.ui.screens.DiscoveringScreen
@@ -27,7 +26,7 @@ import com.yourcompany.android.tictactoe.viewmodel.TicTacToeViewModelFactory
 class MainActivity : ComponentActivity() {
 
   private val viewModel: TicTacToeViewModel by viewModels {
-    TicTacToeViewModelFactory(Nearby.getConnectionsClient(applicationContext))
+    TicTacToeViewModelFactory()
   }
 
   private val requestMultiplePermissions = registerForActivityResult(
