@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
   }
 
   private fun hasPermissions(context: Context, permissions: Array<String>): Boolean {
-    return permissions.all {
+    return permissions.isEmpty() || permissions.all {
       ContextCompat.checkSelfPermission(
         context,
         it
@@ -80,32 +80,7 @@ class MainActivity : ComponentActivity() {
     }
   }
 
-  companion object {
-    private val REQUIRED_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      arrayOf(
-        Manifest.permission.BLUETOOTH_SCAN,
-        Manifest.permission.BLUETOOTH_ADVERTISE,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.ACCESS_WIFI_STATE,
-        Manifest.permission.CHANGE_WIFI_STATE,
-        Manifest.permission.ACCESS_FINE_LOCATION
-      )
-    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      arrayOf(
-        Manifest.permission.BLUETOOTH,
-        Manifest.permission.BLUETOOTH_ADMIN,
-        Manifest.permission.ACCESS_WIFI_STATE,
-        Manifest.permission.CHANGE_WIFI_STATE,
-        Manifest.permission.ACCESS_FINE_LOCATION
-      )
-    } else {
-      arrayOf(
-        Manifest.permission.BLUETOOTH,
-        Manifest.permission.BLUETOOTH_ADMIN,
-        Manifest.permission.ACCESS_WIFI_STATE,
-        Manifest.permission.CHANGE_WIFI_STATE,
-        Manifest.permission.ACCESS_COARSE_LOCATION
-      )
-    }
+  private companion object {
+    val REQUIRED_PERMISSIONS = emptyArray<String>()
   }
 }
