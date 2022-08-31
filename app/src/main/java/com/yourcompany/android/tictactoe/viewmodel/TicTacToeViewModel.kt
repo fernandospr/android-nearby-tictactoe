@@ -27,6 +27,7 @@ import kotlin.text.Charsets.UTF_8
 
 class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : ViewModel() {
   private val localUsername = UUID.randomUUID().toString()
+  private var boardSize = 3
   private var localPlayer: Int = 0
   private var opponentPlayer: Int = 0
   private var opponentEndpointId: String = ""
@@ -129,7 +130,8 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
     }
   }
 
-  fun startHosting() {
+  fun startHosting(boardSize: Int) {
+    this.boardSize = boardSize
     Log.d(TAG, "Start advertising...")
     val advertisingOptions = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
 
@@ -172,7 +174,7 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
 
   fun newGame() {
     Log.d(TAG, "Starting new game")
-    game = TicTacToe()
+    game = TicTacToe(boardSize = this.boardSize)
     _state.value = GameState(localPlayer, game.playerTurn, game.playerWon, game.isOver, game.board)
   }
 

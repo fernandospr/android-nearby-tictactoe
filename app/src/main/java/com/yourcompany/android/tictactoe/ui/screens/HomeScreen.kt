@@ -5,9 +5,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -17,16 +26,18 @@ import com.yourcompany.android.tictactoe.viewmodel.TicTacToeViewModel
 @Composable
 fun HomeScreen(viewModel: TicTacToeViewModel) {
   HomeScreen(
-    onHostClick = { viewModel.startHosting() },
+    onHostClick = { boardSize -> viewModel.startHosting(boardSize) },
     onDiscoverClick = { viewModel.startDiscovering() }
   )
 }
 
 @Composable
 fun HomeScreen(
-  onHostClick: () -> Unit,
+  onHostClick: (boardSize: Int) -> Unit,
   onDiscoverClick: () -> Unit
 ) {
+  var expanded by remember { mutableStateOf(false) }
+  val suggestions = listOf("3x3", "4x4", "5x5", "6x6")
   Column(
     modifier = Modifier
       .padding(16.dp)
@@ -36,9 +47,30 @@ fun HomeScreen(
   ) {
     Button(
       modifier = Modifier.fillMaxWidth(),
-      onClick = onHostClick
+      onClick = { expanded = !expanded }
     ) {
-      Text(text = "Host")
+      Text("Host")
+      Icon(
+        imageVector = Icons.Filled.ArrowDropDown,
+        contentDescription = null
+      )
+    }
+    DropdownMenu(
+      modifier = Modifier.fillMaxWidth(),
+      expanded = expanded,
+      onDismissRequest = { expanded = false }
+    ) {
+      suggestions.forEachIndexed { index, label ->
+        DropdownMenuItem(
+          onClick = {
+            expanded = false
+            onHostClick(index + 3)
+          },
+          text = {
+            Text(text = label)
+          }
+        )
+      }
     }
     Button(
       modifier = Modifier.fillMaxWidth(),
