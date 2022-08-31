@@ -223,7 +223,7 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
 
   private companion object {
     const val TAG = "TicTacToeVM"
-    val STRATEGY = Strategy.P2P_POINT_TO_POINT
+    val STRATEGY = Strategy.P2P_STAR
   }
 }
 
