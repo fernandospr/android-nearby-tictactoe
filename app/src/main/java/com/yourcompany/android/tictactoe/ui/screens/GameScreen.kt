@@ -37,7 +37,8 @@ fun GameScreen(viewModel: TicTacToeViewModel) {
   if (state.isOver) {
     GameOverScreen(
       playerWon = state.playerWon,
-      onNewGameClick = { viewModel.newGame() }
+      localPlayer = state.localPlayer,
+      onContinueClick = { viewModel.nextGame() }
     )
   } else {
     OngoingGameScreen(
@@ -52,7 +53,8 @@ fun GameScreen(viewModel: TicTacToeViewModel) {
 @Composable
 fun GameOverScreen(
   playerWon: Int,
-  onNewGameClick: () -> Unit
+  localPlayer: Int,
+  onContinueClick: () -> Unit
 ) {
   Column(
     modifier = Modifier
@@ -63,16 +65,20 @@ fun GameOverScreen(
   ) {
     Text(text = "Game over")
     Text(
-      text = if (playerWon > 0) "Player $playerWon won!" else "It's a tie!",
+      text = if (playerWon > 0) {
+        if (playerWon != localPlayer) "Player $playerWon won!" else "You won!"
+      } else {
+        "It's a tie!"
+      },
       fontWeight = FontWeight.Bold
     )
     Button(
       modifier = Modifier
         .fillMaxWidth()
         .padding(0.dp, 16.dp),
-      onClick = onNewGameClick
+      onClick = onContinueClick
     ) {
-      Text(text = "New game!")
+      Text(text = "Continue")
     }
   }
 }
@@ -151,20 +157,28 @@ private fun getPlayerColor(player: Int): Color {
     0 -> Color.White
     1 -> Color.Red
     2 -> Color.Green
+    3 -> Color.Blue
+    4 -> Color.Yellow
     else -> throw IllegalArgumentException("Missing color for player $player")
   }
 }
 
 @Preview
 @Composable
-fun GameOverPlayerWonScreenPreview() {
-  GameOverScreen(playerWon = 1, onNewGameClick = {})
+fun GameOverOtherPlayerWonScreenPreview() {
+  GameOverScreen(playerWon = 2, localPlayer = 1, onContinueClick = {})
+}
+
+@Preview
+@Composable
+fun GameOverCurrentPlayerWonScreenPreview() {
+  GameOverScreen(playerWon = 1, localPlayer = 1, onContinueClick = {})
 }
 
 @Preview
 @Composable
 fun GameOverTieScreenPreview() {
-  GameOverScreen(playerWon = 0, onNewGameClick = {})
+  GameOverScreen(playerWon = 0, localPlayer = 1, onContinueClick = {})
 }
 
 @Preview

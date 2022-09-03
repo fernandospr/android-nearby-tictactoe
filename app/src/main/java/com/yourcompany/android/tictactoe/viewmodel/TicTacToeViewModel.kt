@@ -27,26 +27,39 @@ import kotlin.text.Charsets.UTF_8
 
 class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : ViewModel() {
   private val localUsername = UUID.randomUUID().toString()
-  private var boardSize = 3
-  private var localPlayer: Int = 0
-  private var opponentPlayer: Int = 0
-  private var opponentEndpointId: String = ""
 
-  private var game = TicTacToe()
+  private var isHost = false
+  private var boardSize = 0
 
-  private val _state = MutableLiveData(
-    GameState(localPlayer, game.playerTurn, game.playerWon, game.isOver, game.board)
-  )
+  private lateinit var game: TicTacToe
+
+  private val _state = MutableLiveData(GameState.Uninitialized)
   val state: LiveData<GameState> = _state
 
-  private val payloadCallback: PayloadCallback = object : PayloadCallback() {
+  private fun getOpponents() = _state.value?.opponents.orEmpty()
+
+  private val payloadCallback = object : PayloadCallback() {
     override fun onPayloadReceived(endpointId: String, payload: Payload) {
       Log.d(TAG, "onPayloadReceived")
       // This always gets the full data of the payload. Is null if it's not a BYTES payload.
       if (payload.type == Payload.Type.BYTES) {
-        val position = payload.toPosition()
-        Log.d(TAG, "Received [${position.first},${position.second}] from $endpointId")
-        play(opponentPlayer, position)
+        when {
+          payload.isNewGame() -> {
+            val newGame = payload.toNewGame()
+            Log.d(TAG, "Received $newGame from $endpointId")
+            newGame(newGame.assignedPlayerNumber, newGame.boardSize, newGame.players)
+          }
+          payload.isPlay() -> {
+            val play = payload.toPlay()
+            Log.d(TAG, "Received $play from $endpointId")
+            play(play.player, play.position)
+            if (isHost) {
+              getOpponents().filter { it != endpointId }.forEach {
+                sendPlay(it, play.player, play.position)
+              }
+            }
+          }
+        }
       }
     }
 
@@ -100,12 +113,10 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
           // Connected! Can now start sending and receiving data.
           Log.d(TAG, "ConnectionsStatusCodes.STATUS_OK")
 
-          connectionsClient.stopAdvertising()
           connectionsClient.stopDiscovery()
-          opponentEndpointId = endpointId
-          Log.d(TAG, "opponentEndpointId: $opponentEndpointId")
-          newGame()
-          TicTacToeRouter.navigateTo(Screen.Game)
+          val opponents = getOpponents() + endpointId
+          _state.value = GameState.Uninitialized.copy(opponents = opponents)
+          Log.d(TAG, "Added opponentEndpointId: $endpointId")
         }
         ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
           // The connection was rejected by one or both sides.
@@ -131,7 +142,6 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
   }
 
   fun startHosting(boardSize: Int) {
-    this.boardSize = boardSize
     Log.d(TAG, "Start advertising...")
     val advertisingOptions = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
 
@@ -143,9 +153,9 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
     ).addOnSuccessListener {
       // Advertising...
       Log.d(TAG, "Advertising...")
+      this.isHost = true
+      this.boardSize = boardSize
       TicTacToeRouter.navigateTo(Screen.Hosting)
-      localPlayer = 1
-      opponentPlayer = 2
     }.addOnFailureListener {
       // Unable to start advertising
       Log.d(TAG, "Unable to start advertising")
@@ -164,46 +174,95 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
       // Discovering...
       Log.d(TAG, "Discovering...")
       TicTacToeRouter.navigateTo(Screen.Discovering)
-      localPlayer = 2
-      opponentPlayer = 1
     }.addOnFailureListener {
       // Unable to start discovering
       Log.d(TAG, "Unable to start discovering")
     }
   }
 
-  fun newGame() {
-    Log.d(TAG, "Starting new game")
-    game = TicTacToe(boardSize = this.boardSize)
-    _state.value = GameState(localPlayer, game.playerTurn, game.playerWon, game.isOver, game.board)
-  }
-
   fun play(position: Pair<Int, Int>) {
+    val localPlayer = _state.value?.localPlayer
     if (game.playerTurn != localPlayer) return
     if (game.isPlayedBucket(position)) return
 
     play(localPlayer, position)
-    sendPosition(position)
+    getOpponents().forEach {
+      sendPlay(it, localPlayer, position)
+    }
+  }
+
+  private fun sendPlay(opponentEndpointId: String, player: Int, position: Pair<Int, Int>) {
+    val play = Play(player, position)
+    Log.d(TAG, "Sending $play to $opponentEndpointId")
+    connectionsClient.sendPayload(
+      opponentEndpointId,
+      play.toPayload()
+    )
   }
 
   private fun play(player: Int, position: Pair<Int, Int>) {
     Log.d(TAG, "Player $player played [${position.first},${position.second}]")
 
     game.play(player, position)
-    _state.value = GameState(localPlayer, game.playerTurn, game.playerWon, game.isOver, game.board)
-  }
-
-  private fun sendPosition(position: Pair<Int, Int>) {
-    Log.d(TAG, "Sending [${position.first},${position.second}] to $opponentEndpointId")
-    connectionsClient.sendPayload(
-      opponentEndpointId,
-      position.toPayLoad()
+    _state.value = _state.value?.copy(
+      playerTurn = game.playerTurn,
+      playerWon = game.playerWon,
+      isOver = game.isOver
     )
   }
 
-  override fun onCleared() {
-    stopClient()
-    super.onCleared()
+  fun hostNewGame() {
+    connectionsClient.stopAdvertising()
+
+    val opponents = getOpponents()
+    val players = (1..opponents.size + 1).shuffled()
+    val localPlayer = players[0]
+    opponents.forEachIndexed { index, opponent ->
+      val assignedPlayerNumber = players[index + 1]
+      sendNewGame(
+        opponent,
+        boardSize,
+        players.size,
+        assignedPlayerNumber
+      )
+    }
+
+    newGame(localPlayer, boardSize, players.size)
+  }
+
+  private fun sendNewGame(
+    opponentEndpointId: String,
+    boardSize: Int,
+    players: Int,
+    assignedPlayerNumber: Int
+  ) {
+    val newGame = NewGame(boardSize, players, assignedPlayerNumber)
+    Log.d(TAG, "Sending $newGame to $opponentEndpointId")
+    connectionsClient.sendPayload(
+      opponentEndpointId,
+      newGame.toPayload()
+    )
+  }
+
+  private fun newGame(localPlayer: Int, boardSize: Int, players: Int) {
+    Log.d(TAG, "Starting new game")
+    game = TicTacToe(boardSize = boardSize, players = players)
+    _state.value = _state.value?.copy(
+      localPlayer = localPlayer,
+      playerTurn = game.playerTurn,
+      playerWon = game.playerWon,
+      isOver = game.isOver,
+      board = game.board
+    )
+    TicTacToeRouter.navigateTo(Screen.Game)
+  }
+
+  fun nextGame() {
+    if (isHost) {
+      hostNewGame()
+    } else {
+      TicTacToeRouter.navigateTo(Screen.Discovering)
+    }
   }
 
   fun goToHome() {
@@ -216,9 +275,15 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
     connectionsClient.stopAdvertising()
     connectionsClient.stopDiscovery()
     connectionsClient.stopAllEndpoints()
-    localPlayer = 0
-    opponentPlayer = 0
-    opponentEndpointId = ""
+
+    isHost = false
+    boardSize = 0
+    _state.value = GameState.Uninitialized
+  }
+
+  override fun onCleared() {
+    stopClient()
+    super.onCleared()
   }
 
   private companion object {
@@ -227,10 +292,30 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
   }
 }
 
-fun Pair<Int, Int>.toPayLoad() = Payload.fromBytes("$first,$second".toByteArray(UTF_8))
+data class Play(val player: Int, val position: Pair<Int, Int>)
 
-fun Payload.toPosition(): Pair<Int, Int> {
-  val positionStr = String(asBytes()!!, UTF_8)
-  val positionArray = positionStr.split(",")
-  return positionArray[0].toInt() to positionArray[1].toInt()
+fun Payload.isPlay() = String(asBytes()!!, UTF_8).startsWith("PLAY")
+
+fun Play.toPayload() =
+  Payload.fromBytes("PLAY($player,${position.first},${position.second})".toByteArray(UTF_8))
+
+fun Payload.toPlay(): Play {
+  val playStr = String(asBytes()!!, UTF_8)
+  val (player, posX, posY) = playStr.removeSurrounding("PLAY(", ")").split(",")
+  return Play(player.toInt(), posX.toInt() to posY.toInt())
+}
+
+
+data class NewGame(val boardSize: Int, val players: Int, val assignedPlayerNumber: Int)
+
+fun Payload.isNewGame() = String(asBytes()!!, UTF_8).startsWith("NEWGAME")
+
+fun NewGame.toPayload() =
+  Payload.fromBytes("NEWGAME($boardSize,$players,$assignedPlayerNumber)".toByteArray(UTF_8))
+
+fun Payload.toNewGame(): NewGame {
+  val newGameStr = String(asBytes()!!, UTF_8)
+  val (boardSize, players, assignedPlayerNumber) = newGameStr.removeSurrounding("NEWGAME(", ")")
+    .split(",")
+  return NewGame(boardSize.toInt(), players.toInt(), assignedPlayerNumber.toInt())
 }
