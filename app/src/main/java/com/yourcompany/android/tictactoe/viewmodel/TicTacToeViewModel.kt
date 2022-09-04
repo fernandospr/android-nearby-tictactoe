@@ -143,6 +143,7 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
 
   fun startHosting(boardSize: Int) {
     Log.d(TAG, "Start advertising...")
+    TicTacToeRouter.navigateTo(Screen.Hosting)
     val advertisingOptions = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
 
     connectionsClient.startAdvertising(
@@ -155,15 +156,16 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
       Log.d(TAG, "Advertising...")
       this.isHost = true
       this.boardSize = boardSize
-      TicTacToeRouter.navigateTo(Screen.Hosting)
     }.addOnFailureListener {
       // Unable to start advertising
       Log.d(TAG, "Unable to start advertising")
+      TicTacToeRouter.navigateTo(Screen.Home)
     }
   }
 
   fun startDiscovering() {
     Log.d(TAG, "Start discovering...")
+    TicTacToeRouter.navigateTo(Screen.Discovering)
     val discoveryOptions = DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
 
     connectionsClient.startDiscovery(
@@ -173,10 +175,10 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
     ).addOnSuccessListener {
       // Discovering...
       Log.d(TAG, "Discovering...")
-      TicTacToeRouter.navigateTo(Screen.Discovering)
     }.addOnFailureListener {
       // Unable to start discovering
       Log.d(TAG, "Unable to start discovering")
+      TicTacToeRouter.navigateTo(Screen.Home)
     }
   }
 
