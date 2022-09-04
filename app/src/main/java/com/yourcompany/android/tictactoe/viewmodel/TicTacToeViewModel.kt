@@ -41,7 +41,7 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
   private val payloadCallback = object : PayloadCallback() {
     override fun onPayloadReceived(endpointId: String, payload: Payload) {
       Log.d(TAG, "onPayloadReceived")
-      // This always gets the full data of the payload. Is null if it's not a BYTES payload.
+
       if (payload.type == Payload.Type.BYTES) {
         when {
           payload.isNewGame() -> {
@@ -64,8 +64,6 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
     }
 
     override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-      // Bytes payloads are sent as a single chunk, so you'll receive a SUCCESS update immediately
-      // after the call to onPayloadReceived().
       Log.d(TAG, "onPayloadTransferUpdate")
     }
   }
@@ -80,17 +78,13 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
         endpointId,
         connectionLifecycleCallback
       ).addOnSuccessListener {
-        // Successfully requested a connection. Now both sides
-        // must accept before the connection is established.
         Log.d(TAG, "Successfully requested a connection")
       }.addOnFailureListener {
-        // Failed to request the connection.
         Log.d(TAG, "Failed to request the connection")
       }
     }
 
     override fun onEndpointLost(endpointId: String) {
-      // A previously discovered endpoint has gone away.
       Log.d(TAG, "onEndpointLost")
     }
   }
@@ -99,8 +93,6 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
     override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
       Log.d(TAG, "onConnectionInitiated")
 
-      // Instead of accepting connection, you can show an AlertDialog on both devices so both have to accept
-      // See: https://developers.google.com/nearby/connections/android/manage-connections#authenticate_a_connection
       Log.d(TAG, "Accepting connection...")
       connectionsClient.acceptConnection(endpointId, payloadCallback)
     }
@@ -110,7 +102,6 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
 
       when (resolution.status.statusCode) {
         ConnectionsStatusCodes.STATUS_OK -> {
-          // Connected! Can now start sending and receiving data.
           Log.d(TAG, "ConnectionsStatusCodes.STATUS_OK")
 
           connectionsClient.stopDiscovery()
@@ -119,23 +110,18 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
           Log.d(TAG, "Added opponentEndpointId: $endpointId")
         }
         ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
-          // The connection was rejected by one or both sides.
           Log.d(TAG, "ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED")
         }
         ConnectionsStatusCodes.STATUS_ERROR -> {
-          // The connection broke before it was able to be accepted.
           Log.d(TAG, "ConnectionsStatusCodes.STATUS_ERROR")
         }
         else -> {
-          // Unknown status code
           Log.d(TAG, "Unknown status code ${resolution.status.statusCode}")
         }
       }
     }
 
     override fun onDisconnected(endpointId: String) {
-      // Disconnected from this endpoint. No more data can be
-      // sent or received.
       Log.d(TAG, "onDisconnected")
       goToHome()
     }
@@ -152,12 +138,10 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
       connectionLifecycleCallback,
       advertisingOptions
     ).addOnSuccessListener {
-      // Advertising...
       Log.d(TAG, "Advertising...")
       this.isHost = true
       this.boardSize = boardSize
     }.addOnFailureListener {
-      // Unable to start advertising
       Log.d(TAG, "Unable to start advertising")
       TicTacToeRouter.navigateTo(Screen.Home)
     }
@@ -173,10 +157,8 @@ class TicTacToeViewModel(private val connectionsClient: ConnectionsClient) : Vie
       endpointDiscoveryCallback,
       discoveryOptions
     ).addOnSuccessListener {
-      // Discovering...
       Log.d(TAG, "Discovering...")
     }.addOnFailureListener {
-      // Unable to start discovering
       Log.d(TAG, "Unable to start discovering")
       TicTacToeRouter.navigateTo(Screen.Home)
     }
