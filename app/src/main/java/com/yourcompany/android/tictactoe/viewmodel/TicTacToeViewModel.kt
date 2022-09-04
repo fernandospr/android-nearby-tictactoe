@@ -18,9 +18,7 @@ class TicTacToeViewModel() : ViewModel() {
 
   private var game = TicTacToe()
 
-  private val _state = MutableLiveData(
-    GameState(localPlayer, game.playerTurn, game.playerWon, game.isOver, game.board)
-  )
+  private val _state = MutableLiveData(GameState.Uninitialized)
   val state: LiveData<GameState> = _state
 
   fun startHosting() {
